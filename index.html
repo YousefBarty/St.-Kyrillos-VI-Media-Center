@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>St. Kyrillos VI — Classic Solid Overlay</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: transparent;
+  overflow: hidden;
+  font-family: 'Times New Roman', Times, serif;
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+}
+
+/* 🎯 الشريط الكلاسيكي الأصلي: ممتد بكامل عرض الشاشة ومعتم 100% */
+.bar-container {
+  position: fixed; 
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 140px; 
+  background: linear-gradient(90deg, #600c12 0%, #3a0408 35%, #180305 70%, #000000 100%);
+  display: flex;
+  align-items: center;
+  padding: 0 40px;
+  border-top: 3px solid rgba(214, 172, 79, 0.3);
+  box-shadow: 0 -6px 25px rgba(0,0,0,0.6);
+}
+
+/* منطقة اللوجو الدائري */
+.logo-area {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background: #fff;
+  border: 3px solid #d6ac4f;
+  box-shadow: 0 0 15px rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+  margin-right: 25px;
+}
+.logo-area img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* منطقة النصوص الرئيسية في المنتصف */
+.content-area {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+}
+
+.top-row {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+/* اسم الحدث الرئيسي - ذهبي كلاسيكي */
+.event-title {
+  color: #ffcc4d;
+  font-size: 34px; 
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+/* المناسبة - أبيض */
+.season-title {
+  color: #ffffff;
+  font-size: 28px; 
+  font-weight: normal;
+}
+
+/* النص الثابت بالأسفل */
+.fixed-church-name {
+  color: #ffffff;
+  font-size: 38px; 
+  font-weight: bold;
+  letter-spacing: 0.5px;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.9);
+}
+
+/* بوكس التواريخ على اليمين بمقاس أكبر */
+.date-box {
+  margin-left: auto;
+  background: rgba(45, 38, 38, 0.8);
+  border: 2px solid rgba(214, 172, 79, 0.4);
+  border-radius: 12px;
+  padding: 12px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 320px;
+  box-shadow: inset 0 0 15px rgba(0,0,0,0.6);
+}
+
+/* التاريخ القبطي */
+.coptic-date {
+  color: #ffcc4d;
+  font-size: 20px; 
+  font-weight: bold;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+/* التاريخ الميلادي */
+.gregorian-date {
+  color: #ffffff;
+  font-size: 24px; 
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
+</style>
+</head>
+<body>
+
+<div class="bar-container">
+  <div class="logo-area">
+    <img src="channels4_profile.jpg" alt="Church Logo" onerror="this.src='logo.jpg'">
+  </div>
+
+  <div class="content-area">
+    <div class="top-row">
+      <span class="event-title" id="event">-</span>
+      <span class="season-title" id="season"></span>
+    </div>
+    <div class="fixed-church-name">St. Kyrillos VI · Antioch, TN</div>
+  </div>
+
+  <div class="date-box">
+    <div class="coptic-date" id="copticDate">-</div>
+    <div class="gregorian-date" id="gregorianDate">-</div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBpVEdfw7epTTa3-FJz_eowuAKhSgbq29k",
+  authDomain: "fir-yat-88139.firebaseapp.com",
+  databaseURL: "https://fir-yat-88139.firebaseio.com",
+  projectId: "fir-yat-88139",
+  storageBucket: "fir-yat-88139.firebasestorage.app",
+  messagingSenderId: "498202577266",
+  appId: "1:498202577266:web:e56ca040fac88f75d5b5eb",
+  measurementId: "G-1KJ37JL38X"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const overlayRef = doc(db, "obs", "overlay");
+
+const el = {
+  event: document.getElementById("event"),
+  season: document.getElementById("season"),
+  coptic: document.getElementById("copticDate"),
+  gregorian: document.getElementById("gregorianDate")
+};
+
+const FIXED_API_KEY = "AIzaSyAMyzCAwJUbKkJRDbk41ZJ9rRZVc31d0r8";
+const FIXED_CHANNEL_ID = "UC99uTRwGS6gunBt6jPXlozA";
+let lastTitle = "";
+
+function decodeHtmlEntities(text) {
+  const textArea = document.createElement('textarea');
+  textArea.innerHTML = text;
+  return textArea.value;
+}
+
+onSnapshot(overlayRef, (snap) => {
+  if (snap.exists()) {
+    const data = snap.data();
+    
+    el.event.textContent = data.event || "DIVINE LITURGY";
+    el.season.textContent = data.season;
+
+    if (data.copticDate && data.copticDate.trim() !== "-") {
+      el.coptic.textContent = `† ${data.copticDate} †`;
+      el.coptic.style.display = "block";
+    } else {
+      el.coptic.style.display = "none";
+    }
+    
+    if (data.gregorianDate && data.gregorianDate.trim() !== "-") {
+      el.gregorian.textContent = `† ${data.gregorianDate} †`;
+    } else {
+      el.gregorian.textContent = "-";
+    }
+
+    el.season.style.display = data.season ? "inline" : "none";
+  }
+});
+
+async function processAndUploadTitle(titleText) {
+  let cleanTitle = decodeHtmlEntities(titleText);
+  cleanTitle = cleanTitle.replace(/[♱⛪]/g, '').trim();
+  
+  let eventPart = "", seasonPart = "", copticPart = "", gregorianPart = "";
+
+  const bracketMatch = cleanTitle.match(/\(([^)]+)\)/);
+  if (bracketMatch) {
+    seasonPart = bracketMatch[1].trim();
+    cleanTitle = cleanTitle.replace(/\([^)]+\)/, ''); 
+  }
+
+  const segments = cleanTitle.split('|').map(s => s.trim()).filter(s => s !== "");
+
+  if (segments.length === 1) {
+    eventPart = segments[0];
+  } else if (segments.length === 2) {
+    eventPart = segments[0];
+    gregorianPart = segments[1];
+  } else if (segments.length >= 3) {
+    eventPart = segments[0];
+    copticPart = segments[1];
+    gregorianPart = segments[2];
+  }
+
+  await setDoc(overlayRef, {
+    event: eventPart,
+    season: seasonPart,
+    copticDate: copticPart,
+    gregorianDate: gregorianPart,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+async function checkYouTubeLive() {
+  const ytUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${FIXED_CHANNEL_ID}&type=video&eventType=live&key=${FIXED_API_KEY}&t=${Date.now()}`;
+  try {
+    const response = await fetch(ytUrl);
+    const data = await response.json();
+    if (data.items && data.items.length > 0) {
+      let rawTitle = data.items[0].snippet.title;
+      if (rawTitle !== lastTitle) {
+        lastTitle = rawTitle;
+        await processAndUploadTitle(rawTitle);
+      }
+    }
+  } catch (error) {
+    console.error("Auto Sync Error:", error);
+  }
+}
+
+checkYouTubeLive();
+setInterval(checkYouTubeLive, 30000);
+</script>
+</body>
+</html>
